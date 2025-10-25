@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         pancakeswapV3交易对盈利计算器
 // @namespace    pancakeswapV3
-// @version      0.0.1
+// @version      0.0.2
 // @description  根据实时信息计算你当前的盈利
 // @author       shenchanran
 // @match        https://pancakeswap.finance/liquidity/*
@@ -155,12 +155,18 @@
 
                 <div style="color:#aaa;">当前利率</div>
                 <div id="apyValue" style="font-weight:600;color:#4ade80;">--</div>
+                
+                <div style="color:#aaa;">当前位置</div>
+                <div id="nowPos" style="font-weight:600;color:#4ade80;">--</div>
 
-                <div style="color:#aaa;">区间上限</div>
+                <div style="color:#aaa;">区间范围(单向)</div>
+                <div id="qujian" style="font-weight:600;color:#4ade80;">--</div>
+
+                <!--<div style="color:#aaa;">区间上限</div>
                 <div id="rangeHighValue" style="font-weight:600;">--</div>
 
                 <div style="color:#aaa;">区间下限</div>
-                <div id="rangeLowValue" style="font-weight:600;">--</div>
+                <div id="rangeLowValue" style="font-weight:600;">--</div>-->
             </div>
 
             <!-- 分隔线 -->
@@ -255,7 +261,7 @@
         });
     })(panel);
     panel.querySelector('#applyInitialUsdBtn').addEventListener('click', function () {
-        const tokenId = $s['tokenId'];
+        const tokenId = $s['tokenId']||unsafeWindow.location.href.match(/liquidity\/(\d+)\?/)[1];
         if (!tokenId) {
             return;
         }
@@ -299,11 +305,7 @@
     }
 
     function render() {
-        const tokenId = $s['tokenId'];
-        if (!tokenId) {
-            showInfo('获取交易对信息失败，请检查', red)
-            return;
-        }
+        const tokenId = $s['tokenId']||unsafeWindow.location.href.match(/liquidity\/(\d+)\?/)[1]
         let initialUsdValue = GM_getValue(tokenId, 0)//初始投资金额
         if (initialUsdValue == 0) {
             showInfo('请先设置初始资金', red)
@@ -326,6 +328,8 @@
             datas['当前仓位价值'] = datas.当前代币持仓 * datas['反向代币实时价格'] + datas.当前稳定币持仓 * 1
             datas['当前盈利'] = datas.当前仓位价值 - initialUsdValue + datas['当前手续费总计奖励']
             datas['当前利率'] = datas.当前盈利 / datas.当前仓位价值 * 100
+            datas['代币价格变化率'] = (datas.入场代币价格-datas.当前代币价格)/datas.入场代币价格*100
+            datas['区间范围'] = (datas.最高代币价格-datas.最低代币价格)/datas.入场代币价格*50
         } catch (e) {
             console.log(e)
             showInfo('获取数据失败，请检查页面是否完全加载(是否缺数据、是否崩盘)', red)
@@ -338,15 +342,18 @@
         setValue('initialUsdValue', '$' + initialUsdValue)
         setValue('currentPriceValue', datas.当前代币价格)
         setValue('entryPriceValue', datas.入场代币价格)
-        setValue('feeEarnedValue', datas['当前手续费总计奖励'])
+        setValue('feeEarnedValue', '$'+datas.当前手续费总计奖励)
         setValue('tokenAmountValue', datas.当前代币持仓)
         setValue('stableAmountValue', '$' + datas.当前稳定币持仓)
         setValue('rangeValue', datas.最高代币价格 + '~' + datas.最低代币价格)
         setValue('positionNowValue', '$' + datas['当前仓位价值'])
         setValue('profitValue', '$' + datas.当前盈利, datas.当前盈利 > 0 ? green : red)
-        setValue('apyValue', (datas['当前利率'] > 0 ? '+' : '-') + datas['当前利率'].toFixed(3) + '%', datas['当前利率'] > 0 ? green : red)
-        setValue('rangeHighValue', datas.最低代币价格)
-        setValue('rangeLowValue', datas.最高代币价格)
+        setValue('apyValue', (datas.当前利率 > 0 ? '+' : '-') + datas.当前利率.toFixed(3) + '%', datas.当前利率 > 0 ? green : red)
+        setValue('nowPos',(datas.代币价格变化率>0?'+':'')+datas.代币价格变化率.toFixed(3)+'%   '+(datas.代币价格变化率<0?'负区间（手续费垫付亏损）':'正区间（纯盈利）'),datas.代币价格变化率<0?red:green)
+        setValue('qujian',datas.区间范围.toFixed(2)+'%')
+        // setValue('rangeHighValue', datas.最低代币价格)
+        // setValue('rangeLowValue', datas.最高代币价格)
+        
         setValue('isIN','是',green)
         if (!datas.区间内.includes('区间内')) {
             setValue('isIN','否',red)
